@@ -13,7 +13,7 @@ appwrite
 
 async function handlePayment(req, res) {
   try {
-    const data = req.body; // Assuming JSON body parser middleware is used
+    const data = req.body; 
     const { amount, currency, source, description, paymentDetails } = data;
 
     const charge = await stripe.charges.create({
