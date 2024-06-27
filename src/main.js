@@ -1,33 +1,54 @@
-import { Client } from 'node-appwrite';
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); // Use environment variables for security
+const { Appwrite } = require('appwrite');
+const profileService = require('./payentserices'); // Ensure this path is correct
 
-// This is your Appwrite function
-// It's executed each time we get a request
-export default async ({ req, res, log, error }) => {
-  // Why not try the Appwrite SDK?
-  //
-  // const client = new Client()
-  //    .setEndpoint('https://cloud.appwrite.io/v1')
-  //    .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)
-  //    .setKey(process.env.APPWRITE_API_KEY);
+const appwrite = new Appwrite();
+appwrite
+  .setEndpoint(process.env.APPWRITE_ENDPOINT) // Use environment variables
+  .setProject(process.env.APPWRITE_PROJECT_ID) // Use environment variables
+  .setKey(process.env.APPWRITE_API_KEY); // Use environment variables
 
-  // You can log messages to the console
-  log('Hello, Logs!');
+// Define your Appwrite function handler
+async function handlePayment(req, res) {
+  try {
+    // Parse the request body to get payment details
+    const data = JSON.parse(req.payload);
 
-  // If something goes wrong, log an error
-  error('Hello, Errors!');
+    // Extract necessary data from request body
+    const { amount, currency, source, description, paymentDetails } = data;
 
-  // The `req` object contains the request data
-  if (req.method === 'GET') {
-    // Send a response with the res object helpers
-    // `res.send()` dispatches a string back to the client
-    return res.send('Hello, World!');
+    // Create a charge with Stripe
+    const charge = await stripe.charges.create({
+      amount: amount,
+      currency: currency,
+      source: source,
+      description: description,
+    });
+
+    // If charge is successful, store payment details in Appwrite
+    if (charge) {
+      const payment = await profileService.createpayment({
+        amount: amount,
+        paymentdetails: paymentDetails,
+        slug: paymentDetails.id,
+        resid: paymentDetails.resid,
+        userid: paymentDetails.userid,
+      });
+    }
+
+    res.json({
+      statusCode: 200,
+      body: JSON.stringify({ message: 'Payment successful', paymentDetails: charge }),
+    });
+  } catch (error) {
+    // Handle errors
+    console.error('Error processing payment:', error);
+    res.json({
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Failed to process payment' }),
+    });
   }
+}
 
-  // `res.json()` is a handy helper for sending JSON
-  return res.json({
-    motto: 'Build like a team of hundreds_',
-    learn: 'https://appwrite.io/docs',
-    connect: 'https://appwrite.io/discord',
-    getInspired: 'https://builtwith.appwrite.io',
-  });
-};
+// Export the function for Appwrite to execute
+module.exports = handlePayment;
