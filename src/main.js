@@ -1,54 +1,19 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); // Use environment variables for security
-const { Appwrite } = require('appwrite');
-const profileService = require('./payentserices'); // Ensure this path is correct
+// main.js (or your server entry point)
 
-const appwrite = new Appwrite();
-appwrite
-  .setEndpoint(process.env.APPWRITE_ENDPOINT) // Use environment variables
-  .setProject(process.env.APPWRITE_PROJECT_ID) // Use environment variables
-  .setKey(process.env.APPWRITE_API_KEY); // Use environment variables
+const express = require('express');
+const handlePayment = require('./tempCodeRunnerFile'); // Adjust path as necessary
 
-// Define your Appwrite function handler
-async function handlePayment(req, res) {
-  try {
-    // Parse the request body to get payment details
-    const data = JSON.parse(req.payload);
+const app = express();
 
-    // Extract necessary data from request body
-    const { amount, currency, source, description, paymentDetails } = data;
+// Middleware to parse JSON bodies
+app.use(express.json());
 
-    // Create a charge with Stripe
-    const charge = await stripe.charges.create({
-      amount: amount,
-      currency: currency,
-      source: source,
-      description: description,
-    });
+// Define route for handling payment
+app.post('/api/handlePayment', handlePayment);
 
-    // If charge is successful, store payment details in Appwrite
-    if (charge) {
-      const payment = await profileService.createpayment({
-        amount: amount,
-        paymentdetails: paymentDetails,
-        slug: paymentDetails.id,
-        resid: paymentDetails.resid,
-        userid: paymentDetails.userid,
-      });
-    }
+// Start the server
+const PORT = 5173;
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
 
-    res.json({
-      statusCode: 200,
-      body: JSON.stringify({ message: 'Payment successful', paymentDetails: charge }),
-    });
-  } catch (error) {
-    // Handle errors
-    console.error('Error processing payment:', error);
-    res.json({
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to process payment' }),
-    });
-  }
-}
-
-// Export the function for Appwrite to execute
-module.exports = handlePayment;
